@@ -1,0 +1,236 @@
+
+								Project Report
+								--------------
+								
+Team Members:
+1)Akshay kallam(1001751149)
+2)Sai krishna Gowrishetty(1001755130)
+
+Contribution: We worked on the whole project together.
+
+Language: Python 3.6
+
+Instructions for running:
+------------------------
+program takes the input filename from the command line arguments and creates an output file accordingly
+command for running:- python 2PL_wound_wait.py <inputfilename>
+eg:- python 2PL_wound_wait.py input1.txt
+output text file is created with the name 'Output_of_input1'
+
+Data Structures:
+
+TransactionTable: Nested Dictionary, where key is the TransactionID and value is a dictinary containing key-value pairs of all
+the required transaction details.
+eg:-
+    r = {x
+		 T1:{
+			 "TID":T1, 
+			 "TimeStamp":time, 
+			 "Status":"Active",
+			 "BlockedBy":"None", 
+			 "BlockedOperations":[] 
+			}
+		 }
+LockTable: Nested Dictionary, where key is the DataItem and value is a dictinary containing key-value pairs of all
+the required Lock details
+eg:-
+    l = {
+		 X:{
+			"DataItem":"X", 
+			"LockMode":"R", 
+			"TIDList":[T1,T2],
+		   }
+		 }
+		 
+psuedo-code:
+
+#global variable to store TimeStamp
+Initialize timer variable to zero
+#used for not printing Transaction table and Lock table to output file in case of no changes
+Initialize print variable to zero
+
+reads the input file name from command line argument and store into 'ifile'
+creates output file 'ofile' for the given input file
+OPEN inputfile in “Read” mode
+OPEN outputfile in “Write” mode
+calls the main function
+
+#loads the input file and calls corresponding operation for each transaction
+def main():
+	Read the file into a string 'ip'
+	Create a list 't' by Splitting the string 'ip' using delimiter ';'
+	for each transaction in t:
+		if transaction is begin:
+			Begin_Transaction(transaction,TransactionTable)
+		ENDIF
+		if transaction is read:
+			Read(transaction,TransactionTable, LockTable)
+		ENDIF
+		if transaction is write:
+			Write(transaction,TransactionTable, LockTable)
+		ENDIF
+		if transaction is end:
+			End_Transaction(transaction,TransactionTable, LockTable)
+		ENDIF
+	#checks if there are any changes in TransactionTable and LockTable
+	if p is 1:
+		prints the TransactionTable and LockTable to output file
+	
+#Handles Begin Transaction request	
+Function Begin_Transaction(transaction,TransactionTable):
+	increment the timer by 1
+	Extract the transactionid from transaction and assign it to 'tid'
+	create a dictinary 'r' with all the transaction details("TID":tid, "TimeStamp":timer, "Status":"Active",
+         "BlockedBy":"None", "BlockedOperations":[])
+	Add a record to the TransactionTable with key as the tid and value as r
+EndFunction
+
+#Handles Read Transaction request		
+Function Read(transaction,TransactionTable, LockTable):
+	Extract the transactionid from transaction and assign it to 'tid'
+	if transaction status is Active:
+		Extract the resource name from transaction and assign it to 'rsrc'
+		if rsrc is in LockTable:
+			if rsrc is locked in WriteMode:
+				Get the transactionid of the transaction which locked it and assign it to 'tid1'
+				if timestamp of tid < timestamp of tid1 :
+					Abort the transaction tid1
+					update the transaction tid1 record in TransactionTable("Status":"Aborted",
+								"BlockedOperations":[], "BlockedBy":None)
+					remove_locks(tid1, LockTable,TransactionTable)
+					update the DataItem rsrc record in LockTable("LockMode":"R","TIDList":[tid])
+				else:
+					block the transation tid
+					update the transaction tid record in TransactionTable("Status":"Blocked", "BlockedOperations": append transaction, "BlockedBy": tid1)
+				ENDIF
+			else:
+				Read_Lock(tid, rsrc, LockTable)
+			ENDIF
+		ENDIF
+	ENDIF
+	if transaction status is Blocked:
+		Add transaction to list of BlockedOperations for tid in TransactionTable("BlockedOperations": append transaction)
+	ENDIF
+	if transaction status is Aborted:
+		print "transaction already aborted"
+	ENDIF
+	return
+EndFunction
+	
+#Acquires ReadLock on resource requested if read is valid	
+Function Read_Lock(TID,DataItem,LockTable):
+	if DataItem in LockTable:
+		add transaction TID to TIDList of DataItem in LockTable("TIDList": append TID)
+		return
+	ENDIF
+	create a dictinary 'l' with all the lock details("DataItem":DataItem, "LockMode":"R", "TIDList":[TID])
+	Add a record to the LockTable with key as the DataItem and value as list
+EndFunction
+
+#Handles Write Transaction request	
+Function Write(transaction,TransactionTable, LockTable):
+	Extract the transactionid from transaction and assign it to 'tid'
+	if transaction status is Active:
+		Extract the resource name from transaction and assign it to 'rsrc'
+		if rsrc is in LockTable:
+			if rsrc is in read mode and if this is the only transaction accessing it:
+				Write_Lock(tid, rsrc, LockTable)
+				return
+			else:
+				for each transaction 'tx' in the TIDList of data item in LockTable:
+					if timestamp of tid < timestamp of tx :
+						Abort the transaction tx
+						update the transaction tx record in TransactionTable("Status":"Aborted", 
+									"BlockedOperations":[], "BlockedBy":None)
+						remove_locks(tx, LockTable,TransactionTable)
+					else:
+						block the transation tid
+						update the transaction tid record in TransactionTable("Status":"Blocked", "BlockedOperations": append transaction, "BlockedBy": tid1)
+					ENDIF
+				ENDFOR
+				if transaction status is active
+					update lock mode to write
+				ENDIF
+				return
+			ENDIF
+		else
+			Write_Lock(tid, rsrc, LockTable)
+		ENDIF
+	ENDIF
+	if transaction status is Blocked:
+		Add transaction to list of BlockedOperations for tid in TransactionTable("BlockedOperations": append transaction)
+	ENDIF
+	if transaction status is Aborted:
+		print "transaction already aborted"
+	ENDIF
+	return
+EndFunction	
+
+#Acquires WriteLock on resource requested if write is valid
+Function Write_Lock(TID,Data,LockTable):
+	if DataItem in LockTable:
+		update lockmode to write
+		return
+	ENDIF
+	create a dictinary 'l' with all the lock details("DataItem":DataItem, "LockMode":"W", "TIDList":[TID])
+	Add a record to the LockTable with key as the DataItem and value as list
+EndFunction
+	
+#Handles End Transaction request	
+Function End_Transaction(Tname,TransactionTable,LockTable):
+	Extract the transactionid from transaction and assign it to 'tid'
+	if transaction status is aborted:
+		print the transaction status is already aborted
+	else:
+		update the status to committed
+		remove_locks(tid,LockTable,TransactionTable)
+	ENDIF
+EndFunction
+
+#Remove all the locks that a transaction holds if it is committed or aborted
+Function remove_locks(tid,LockTable,TransactionTable):
+	for each DataItem in LockTable:
+		get the TIDList of the DataItem into 'tx'
+		if length of tx = 1 and tid is the only transaction locking it:
+			remove the DataItem from LockTable
+			Restart_Blocked(i, LockTable, TransactionTable)
+		elif tid is in tx:
+			remove tid from TIDList
+			if LockMode is Read and length of tx = 1:
+				Restart_Blocked(i, LockTable, TransactionTable)
+			ENDIF
+		ENDIF
+	ENDFOR
+EndFunction
+			
+#Restarts the blocked operations as soon as the required resources are unlocked			
+Function Restart_Blocked(i, LockTable, TransactionTable):
+	Sort TransactionTable on TimeStamp
+	for each Transaction 'tid' in sorted TransactionTable:
+		get the list of blocked operations into 'l'
+		if length > 0
+			get the first operation into 'k'
+			if k is waiting for resource i:
+				update the transaction tid record in TransactionTable("Status":"Active", "BlockedOperations": remove k, "BlockedBy": "None")
+				if k is read:
+					Read(k, LockTable, TransactionTable)
+				ENDIF
+				if k is write:
+					Write(k, LockTable, TransactionTable)
+				ENDIF
+				while length of l > 0:
+					get the first operation into 'tx'
+					remove the operation from tid record in TransactionTable("BlockedOperations": remove tx)
+					if k is read:
+						Read(k, LockTable, TransactionTable)
+					ENDIF
+					if k is write:
+						Write(k, LockTable, TransactionTable)
+					ENDIF
+				ENDWHILE
+				return
+			ENDIF
+		ENDIF
+	ENDFOR
+EndFunction
+				
